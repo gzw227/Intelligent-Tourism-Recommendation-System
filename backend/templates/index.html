@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智游中国 - 智能旅游推荐系统</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus@2.4.4/dist/index.css">
+    <script src="https://unpkg.com/vue@3.4.15/dist/vue.global.prod.js"></script>
+    <script src="https://unpkg.com/element-plus@2.4.4/dist/index.full.min.js"></script>
+    <script src="https://unpkg.com/element-plus@2.4.4/dist/locale/zh-cn.min.js"></script>
+    <script src="https://unpkg.com/axios@1.6.2/dist/axios.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #ec4899;
+            --dark: #1e293b;
+            --gray: #64748b;
+            --light: #f8fafc;
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; background: var(--light); color: var(--dark); }
+
+        /* 导航栏 */
+        .navbar { background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,0.08); position: sticky; top: 0; z-index: 1000; }
+        .navbar-inner { max-width: 1400px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+        .logo { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; cursor: pointer; }
+        .nav-links { display: flex; gap: 8px; align-items: center; }
+        .nav-btn { padding: 8px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; border: none; background: none; font-size: 15px; color: var(--dark); transition: all 0.3s; }
+        .nav-btn:hover, .nav-btn.active { background: var(--primary); color: #fff; }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .user-name { font-weight: 600; color: var(--primary); }
+
+        /* 英雄区 */
+        .hero { position: relative; height: 420px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6B8DD6 100%); overflow: hidden; }
+        .hero-content { text-align: center; color: #fff; z-index: 1; padding: 0 24px; }
+        .hero h1 { font-size: 48px; font-weight: 800; margin-bottom: 16px; text-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .hero p { font-size: 18px; opacity: 0.9; margin-bottom: 36px; }
+        .hero-search { display: flex; max-width: 600px; margin: 0 auto; gap: 12px; }
+        .hero-search input { flex: 1; padding: 14px 24px; border: none; border-radius: 12px; font-size: 16px; outline: none; }
+        .hero-search button { padding: 14px 36px; background: linear-gradient(135deg, #fff, #e0e7ff); color: var(--primary); border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.3s; }
+        .hero-search button:hover { transform: translateY(-2px); }
+
+        /* 主内容 */
+        .main-content { max-width: 1400px; margin: 0 auto; padding: 40px 24px; }
+        .section { margin-bottom: 48px; }
+        .section-header { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+        .section-title { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .section-title span { color: var(--primary); }
+
+        /* 统计卡片 */
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .stat-card { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: #fff; padding: 28px; border-radius: 16px; text-align: center; }
+        .stat-value { font-size: 36px; font-weight: 800; }
+        .stat-label { opacity: 0.9; margin-top: 6px; }
+
+        /* 景点网格 */
+        .attractions-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; }
+        .attraction-card { background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); transition: transform 0.3s, box-shadow 0.3s; cursor: pointer; }
+        .attraction-card:hover { transform: translateY(-6px); box-shadow: 0 12px 36px rgba(0,0,0,0.12); }
+        .card-image { width: 100%; height: 180px; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .card-image img { width: 100%; height: 100%; object-fit: cover; }
+        .card-image .placeholder { font-size: 48px; }
+        .card-body { padding: 18px; }
+        .card-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-city { color: var(--primary); font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+        .card-rating { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .card-rating .stars { color: #fbbf24; }
+        .card-rating .score { font-weight: 700; font-size: 14px; }
+        .card-desc { color: var(--gray); font-size: 13px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .card-meta { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; display: flex; gap: 8px; flex-wrap: wrap; }
+        .meta-tag { background: #f1f5f9; padding: 4px 10px; border-radius: 12px; font-size: 12px; color: var(--gray); }
+
+        /* 城市网格 */
+        .city-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+        .city-card { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; padding: 22px; border-radius: 14px; cursor: pointer; transition: transform 0.3s; }
+        .city-card:hover { transform: translateY(-4px); }
+        .city-card .city-name { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .city-card .city-count { opacity: 0.85; font-size: 13px; }
+
+        /* 筛选栏 */
+        .filter-bar { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+        .filter-bar select, .filter-bar input { padding: 10px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; }
+        .filter-bar select:focus, .filter-bar input:focus { border-color: var(--primary); }
+        .filter-btn { padding: 10px 28px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .filter-btn:hover { background: var(--primary-dark); }
+
+        /* 分页 */
+        .pagination { display: flex; justify-content: center; margin-top: 32px; gap: 8px; }
+        .page-btn { padding: 8px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; transition: all 0.3s; }
+        .page-btn:hover, .page-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* 登录/注册弹窗 */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+        .modal { background: #fff; border-radius: 20px; padding: 40px; width: 420px; max-width: 90vw; }
+        .modal h2 { font-size: 24px; font-weight: 700; margin-bottom: 24px; text-align: center; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: var(--dark); }
+        .form-group input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; outline: none; }
+        .form-group input:focus { border-color: var(--primary); }
+        .form-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.3s; }
+        .form-btn:hover { transform: translateY(-2px); }
+        .form-link { text-align: center; margin-top: 16px; color: var(--primary); cursor: pointer; font-weight: 600; }
+
+        /* 详情弹窗 */
+        .detail-modal { background: #fff; border-radius: 20px; width: 800px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+        .detail-image { width: 100%; height: 300px; background: linear-gradient(135deg, var(--primary), var(--secondary)); overflow: hidden; }
+        .detail-image img { width: 100%; height: 100%; object-fit: cover; }
+        .detail-body { padding: 30px; }
+        .detail-name { font-size: 28px; font-weight: 800; margin-bottom: 12px; }
+        .detail-info { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+        .detail-info-item { display: flex; align-items: center; gap: 8px; color: var(--gray); }
+        .detail-info-item strong { color: var(--dark); }
+        .detail-section { margin-bottom: 24px; }
+        .detail-section h3 { font-size: 18px; font-weight: 700; margin-bottom: 12px; color: var(--dark); }
+        .detail-section p { color: var(--gray); line-height: 1.8; }
+        .collect-btn { padding: 10px 24px; border-radius: 10px; font-weight: 600; cursor: pointer; border: 2px solid var(--primary); background: #fff; color: var(--primary); transition: all 0.3s; }
+        .collect-btn.collected { background: var(--primary); color: #fff; }
+        .collect-btn:hover { transform: translateY(-2px); }
+
+        /* 加载 */
+        .loading { text-align: center; padding: 60px; color: var(--gray); }
+        .spinner { width: 40px; height: 40px; border: 3px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 标签页 */
+        .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+        .tab { padding: 10px 24px; border-radius: 10px; cursor: pointer; font-weight: 600; background: #f1f5f9; color: var(--gray); transition: all 0.3s; border: none; font-size: 14px; }
+        .tab:hover, .tab.active { background: var(--primary); color: #fff; }
+
+        /* 季节标签 */
+        .season-tags { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .season-tag { padding: 8px 20px; border-radius: 20px; cursor: pointer; background: #f1f5f9; font-weight: 600; transition: all 0.3s; border: 2px solid transparent; }
+        .season-tag:hover, .season-tag.active { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
+
+        /* 收藏列表 */
+        .collect-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 28px; }
+            .attractions-grid { grid-template-columns: 1fr; }
+            .detail-info { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <div class="logo" @click="currentView='home'">🗺️ 智游中国</div>
+            <div class="nav-links">
+                <button class="nav-btn" :class="{active: currentView==='home'}" @click="currentView='home'">首页</button>
+                <button class="nav-btn" :class="{active: currentView==='explore'}" @click="currentView='explore'">景点浏览</button>
+                <button class="nav-btn" :class="{active: currentView==='profile'}" @click="openProfile">个人中心</button>
+                <template v-if="user">
+                    <span class="user-name">{{ user.nickname || user.username }}</span>
+                    <button class="nav-btn" @click="logout">退出</button>
+                </template>
+                <template v-else>
+                    <button class="nav-btn" @click="showLoginModal=true">登录</button>
+                    <button class="nav-btn" @click="showRegisterModal=true">注册</button>
+                </template>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 首页 -->
+    <div v-if="currentView==='home'">
+        <div class="hero">
+            <div class="hero-content">
+                <h1>探索中国，发现精彩</h1>
+                <p>智能推荐，为您量身定制旅行方案</p>
+                <div class="hero-search">
+                    <input v-model="searchKeyword" placeholder="搜索景点、城市..." @keyup.enter="doSearch">
+                    <button @click="doSearch">搜索</button>
+                </div>
+            </div>
+        </div>
+        <div class="main-content">
+            <!-- 统计 -->
+            <div class="stats-row">
+                <div class="stat-card"><div class="stat-value">{{ stats.totalAttractions }}</div><div class="stat-label">景点总数</div></div>
+                <div class="stat-card"><div class="stat-value">{{ stats.totalCities }}</div><div class="stat-label">覆盖城市</div></div>
+                <div class="stat-card"><div class="stat-value">{{ stats.avgRating }}</div><div class="stat-label">平均评分</div></div>
+            </div>
+
+            <!-- 热门城市 -->
+            <div class="section">
+                <div class="section-header"><div class="section-title"><span>🏙️</span> 热门旅游城市</div></div>
+                <div class="city-grid">
+                    <div class="city-card" v-for="city in topCities" :key="city.name" @click="selectCity(city.name)">
+                        <div class="city-name">{{ city.name }}</div>
+                        <div class="city-count">{{ city.count }}个景点 · {{ city.avgRating }}分</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 热门景点 -->
+            <div class="section">
+                <div class="section-header"><div class="section-title"><span>🔥</span> 热门景点推荐</div></div>
+                <div v-if="popularLoading" class="loading"><div class="spinner"></div>加载中...</div>
+                <div v-else class="attractions-grid">
+                    <div class="attraction-card" v-for="item in popularList" :key="item.id" @click="openDetail(item.id)">
+                        <div class="card-image">
+                            <img v-if="item.image_url" :src="item.image_url" @error="$event.target.style.display='none'">
+                            <span v-else class="placeholder">🏔️</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-name">{{ item.name }}</div>
+                            <div class="card-city">📍 {{ item.city }}</div>
+                            <div class="card-rating">
+                                <span class="stars">{{ '⭐'.repeat(Math.round(item.rating || 0)) }}</span>
+                                <span class="score">{{ (item.rating || 0).toFixed(1) }}</span>
+                            </div>
+                            <div class="card-desc">{{ item.description || '' }}</div>
+                            <div class="card-meta">
+                                <span class="meta-tag" v-if="item.play_time">⏱️ {{ item.play_time }}</span>
+                                <span class="meta-tag" v-if="item.season">📅 {{ item.season }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当季推荐 -->
+            <div class="section">
+                <div class="section-header"><div class="section-title"><span>🌸</span> 当季推荐 · {{ currentSeason }}</div></div>
+                <div class="season-tags">
+                    <span class="season-tag" :class="{active: selectedSeason==='春季'}" @click="loadSeasonal('春季')">🌸 春季</span>
+                    <span class="season-tag" :class="{active: selectedSeason==='夏季'}" @click="loadSeasonal('夏季')">☀️ 夏季</span>
+                    <span class="season-tag" :class="{active: selectedSeason==='秋季'}" @click="loadSeasonal('秋季')">🍂 秋季</span>
+                    <span class="season-tag" :class="{active: selectedSeason==='冬季'}" @click="loadSeasonal('冬季')">❄️ 冬季</span>
+                </div>
+                <div v-if="seasonalLoading" class="loading"><div class="spinner"></div>加载中...</div>
+                <div v-else class="attractions-grid">
+                    <div class="attraction-card" v-for="item in seasonalList" :key="item.id" @click="openDetail(item.id)">
+                        <div class="card-image">
+                            <img v-if="item.image_url" :src="item.image_url" @error="$event.target.style.display='none'">
+                            <span v-else class="placeholder">🏔️</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-name">{{ item.name }}</div>
+                            <div class="card-city">📍 {{ item.city }}</div>
+                            <div class="card-rating">
+                                <span class="stars">{{ '⭐'.repeat(Math.round(item.rating || 0)) }}</span>
+                                <span class="score">{{ (item.rating || 0).toFixed(1) }}</span>
+                            </div>
+                            <div class="card-desc">{{ item.description || '' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 景点浏览 -->
+    <div v-if="currentView==='explore'">
+        <div class="main-content">
+            <div class="section">
+                <div class="section-header"><div class="section-title"><span>🔍</span> 景点浏览</div></div>
+                <div class="filter-bar">
+                    <select v-model="filterCity" @change="loadAttractions">
+                        <option value="">全部城市</option>
+                        <option v-for="c in allCities" :key="c" :value="c">{{ c }}</option>
+                    </select>
+                    <input v-model="filterKeyword" placeholder="搜索景点..." @keyup.enter="loadAttractions">
+                    <select v-model="filterRating" @change="loadAttractions">
+                        <option value="">全部评分</option>
+                        <option value="4.5">4.5分以上</option>
+                        <option value="4">4分以上</option>
+                        <option value="3">3分以上</option>
+                    </select>
+                    <button class="filter-btn" @click="loadAttractions">筛选</button>
+                </div>
+                <div v-if="exploreLoading" class="loading"><div class="spinner"></div>加载中...</div>
+                <div v-else class="attractions-grid">
+                    <div class="attraction-card" v-for="item in exploreList" :key="item.id" @click="openDetail(item.id)">
+                        <div class="card-image">
+                            <img v-if="item.image_url" :src="item.image_url" @error="$event.target.style.display='none'">
+                            <span v-else class="placeholder">🏔️</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-name">{{ item.name }}</div>
+                            <div class="card-city">📍 {{ item.city }}</div>
+                            <div class="card-rating">
+                                <span class="stars">{{ '⭐'.repeat(Math.round(item.rating || 0)) }}</span>
+                                <span class="score">{{ (item.rating || 0).toFixed(1) }}</span>
+                            </div>
+                            <div class="card-desc">{{ item.description || '' }}</div>
+                            <div class="card-meta">
+                                <span class="meta-tag" v-if="item.play_time">⏱️ {{ item.play_time }}</span>
+                                <span class="meta-tag" v-if="item.season">📅 {{ item.season }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pagination" v-if="exploreTotal > explorePageSize">
+                    <button class="page-btn" :class="{active: explorePage===p}" v-for="p in totalPages" :key="p" @click="explorePage=p; loadAttractions()">{{ p }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 个人中心 -->
+    <div v-if="currentView==='profile'">
+        <div class="main-content">
+            <div class="section" v-if="user">
+                <div class="section-header"><div class="section-title"><span>👤</span> 个人中心 · {{ user.nickname || user.username }}</div></div>
+                <div class="tabs">
+                    <button class="tab" :class="{active: profileTab==='collects'}" @click="profileTab='collects'; loadCollects()">我的收藏</button>
+                    <button class="tab" :class="{active: profileTab==='history'}" @click="profileTab='history'; loadHistory()">浏览历史</button>
+                </div>
+                <div v-if="profileTab==='collects'">
+                    <div v-if="collectLoading" class="loading"><div class="spinner"></div>加载中...</div>
+                    <div v-else-if="collectList.length===0" class="loading"><p>暂无收藏</p></div>
+                    <div v-else class="collect-list">
+                        <div class="attraction-card" v-for="item in collectList" :key="item.id" @click="openDetail(item.id)">
+                            <div class="card-image">
+                                <img v-if="item.image_url" :src="item.image_url" @error="$event.target.style.display='none'">
+                                <span v-else class="placeholder">🏔️</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="card-name">{{ item.name }}</div>
+                                <div class="card-city">📍 {{ item.city }}</div>
+                                <div class="card-rating"><span class="score">{{ (item.rating || 0).toFixed(1) }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="profileTab==='history'">
+                    <div v-if="historyLoading" class="loading"><div class="spinner"></div>加载中...</div>
+                    <div v-else-if="historyList.length===0" class="loading"><p>暂无浏览记录</p></div>
+                    <div v-else class="collect-list">
+                        <div class="attraction-card" v-for="item in historyList" :key="item.id" @click="openDetail(item.id)">
+                            <div class="card-image">
+                                <img v-if="item.image_url" :src="item.image_url" @error="$event.target.style.display='none'">
+                                <span v-else class="placeholder">🏔️</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="card-name">{{ item.name }}</div>
+                                <div class="card-city">📍 {{ item.city }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div v-else class="loading"><p>请先登录</p></div>
+        </div>
+    </div>
+
+    <!-- 登录弹窗 -->
+    <div class="modal-overlay" v-if="showLoginModal" @click.self="showLoginModal=false">
+        <div class="modal">
+            <h2>登录</h2>
+            <div class="form-group"><label>用户名</label><input v-model="loginForm.username" placeholder="请输入用户名"></div>
+            <div class="form-group"><label>密码</label><input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="doLogin"></div>
+            <button class="form-btn" @click="doLogin">登录</button>
+            <div class="form-link" @click="showLoginModal=false; showRegisterModal=true">没有账号？去注册</div>
+        </div>
+    </div>
+
+    <!-- 注册弹窗 -->
+    <div class="modal-overlay" v-if="showRegisterModal" @click.self="showRegisterModal=false">
+        <div class="modal">
+            <h2>注册</h2>
+            <div class="form-group"><label>用户名</label><input v-model="registerForm.username" placeholder="请输入用户名"></div>
+            <div class="form-group"><label>密码</label><input v-model="registerForm.password" type="password" placeholder="请输入密码"></div>
+            <div class="form-group"><label>昵称</label><input v-model="registerForm.nickname" placeholder="请输入昵称"></div>
+            <button class="form-btn" @click="doRegister">注册</button>
+            <div class="form-link" @click="showRegisterModal=false; showLoginModal=true">已有账号？去登录</div>
+        </div>
+    </div>
+
+    <!-- 景点详情弹窗 -->
+    <div class="modal-overlay" v-if="showDetailModal" @click.self="showDetailModal=false">
+        <div class="detail-modal">
+            <div class="detail-image">
+                <img v-if="detailData.image_url" :src="detailData.image_url" @error="$event.target.style.display='none'">
+            </div>
+            <div class="detail-body">
+                <div class="detail-name">{{ detailData.name }}</div>
+                <div class="detail-info">
+                    <div class="detail-info-item">📍 <strong>{{ detailData.city }}</strong></div>
+                    <div class="detail-info-item">⭐ <strong>{{ (detailData.rating || 0).toFixed(1) }}</strong></div>
+                    <div class="detail-info-item" v-if="detailData.play_time">⏱️ {{ detailData.play_time }}</div>
+                    <div class="detail-info-item" v-if="detailData.season">📅 {{ detailData.season }}</div>
+                    <div class="detail-info-item" v-if="detailData.open_time">🕐 {{ detailData.open_time }}</div>
+                </div>
+                <button class="collect-btn" :class="{collected: isCollected}" @click="toggleCollect">
+                    {{ isCollected ? '❤️ 已收藏' : '🤍 收藏' }}
+                </button>
+                <div class="detail-section" v-if="detailData.description" style="margin-top:24px">
+                    <h3>景点介绍</h3>
+                    <p>{{ detailData.description }}</p>
+                </div>
+                <div class="detail-section" v-if="detailData.tips">
+                    <h3>小贴士</h3>
+                    <p>{{ detailData.tips }}</p>
+                </div>
+                <div class="detail-section" v-if="detailData.ticket">
+                    <h3>门票信息</h3>
+                    <p>{{ detailData.ticket }}</p>
+                </div>
+                <div class="detail-section" v-if="similarList.length > 0">
+                    <h3>相似景点推荐</h3>
+                    <div class="attractions-grid" style="margin-top:16px">
+                        <div class="attraction-card" v-for="item in similarList" :key="item.id" @click="openDetail(item.id)">
+                            <div class="card-image">
+                                <img v-if="item.image_url" :src="item.image_url" @error="$event.target.style.display='none'">
+                                <span v-else class="placeholder">🏔️</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="card-name">{{ item.name }}</div>
+                                <div class="card-city">📍 {{ item.city }}</div>
+                                <div class="card-rating"><span class="score">{{ (item.rating || 0).toFixed(1) }}</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, watch } = Vue;
+
+const app = createApp({
+    setup() {
+        const API = '';
+        const currentView = ref('home');
+        const user = ref(JSON.parse(localStorage.getItem('travel_user') || 'null'));
+        const token = ref(localStorage.getItem('travel_token') || '');
+
+        // 首页数据
+        const searchKeyword = ref('');
+        const stats = ref({ totalAttractions: 0, totalCities: 0, avgRating: '0.0' });
+        const topCities = ref([]);
+        const popularList = ref([]);
+        const popularLoading = ref(false);
+        const seasonalList = ref([]);
+        const seasonalLoading = ref(false);
+        const selectedSeason = ref('');
+        const currentSeason = ref('');
+
+        // 浏览页数据
+        const allCities = ref([]);
+        const filterCity = ref('');
+        const filterKeyword = ref('');
+        const filterRating = ref('');
+        const exploreList = ref([]);
+        const exploreLoading = ref(false);
+        const explorePage = ref(1);
+        const explorePageSize = 12;
+        const exploreTotal = ref(0);
+        const totalPages = computed(() => Math.ceil(exploreTotal.value / explorePageSize));
+
+        // 详情数据
+        const showDetailModal = ref(false);
+        const detailData = ref({});
+        const isCollected = ref(false);
+        const similarList = ref([]);
+
+        // 登录注册
+        const showLoginModal = ref(false);
+        const showRegisterModal = ref(false);
+        const loginForm = ref({ username: '', password: '' });
+        const registerForm = ref({ username: '', password: '', nickname: '' });
+
+        // 个人中心
+        const profileTab = ref('collects');
+        const collectList = ref([]);
+        const collectLoading = ref(false);
+        const historyList = ref([]);
+        const historyLoading = ref(false);
+
+        function getSeason() {
+            const m = new Date().getMonth() + 1;
+            if (m >= 3 && m <= 5) return '春季';
+            if (m >= 6 && m <= 8) return '夏季';
+            if (m >= 9 && m <= 11) return '秋季';
+            return '冬季';
+        }
+
+        async function apiGet(url, params) {
+            try {
+                const res = await axios.get(API + url, { params, headers: token.value ? { Authorization: 'Bearer ' + token.value } : {} });
+                return res.data;
+            } catch (e) {
+                console.error('API Error:', url, e);
+                return null;
+            }
+        }
+
+        async function apiPost(url, data) {
+            try {
+                const res = await axios.post(API + url, data, { headers: token.value ? { Authorization: 'Bearer ' + token.value } : {} });
+                return res.data;
+            } catch (e) {
+                console.error('API Error:', url, e);
+                return null;
+            }
+        }
+
+        async function apiDelete(url, data) {
+            try {
+                const res = await axios.delete(API + url, { data, headers: token.value ? { Authorization: 'Bearer ' + token.value } : {} });
+                return res.data;
+            } catch (e) {
+                console.error('API Error:', url, e);
+                return null;
+            }
+        }
+
+        function extractData(res) {
+            if (!res) return [];
+            if (res.code === 200 && res.data) {
+                if (Array.isArray(res.data)) return res.data;
+                if (res.data.items) return res.data.items;
+                return res.data;
+            }
+            if (Array.isArray(res)) return res;
+            if (res.items) return res.items;
+            if (res.data && Array.isArray(res.data)) return res.data;
+            return [];
+        }
+
+        // 首页
+        async function loadStats() {
+            const res = await apiGet('/api/attractions/list', { page: 1, page_size: 1 });
+            if (res && res.data) {
+                stats.value.totalAttractions = res.data.total || 0;
+            }
+            const cityRes = await apiGet('/api/attractions/cities');
+            const cities = extractData(cityRes);
+            stats.value.totalCities = cities.length;
+            stats.value.avgRating = '4.2';
+        }
+
+        async function loadTopCities() {
+            const cityRes = await apiGet('/api/attractions/cities');
+            const cities = extractData(cityRes);
+            allCities.value = cities;
+            // 取前12个城市
+            const topCityNames = cities.slice(0, 12);
+            const cityData = [];
+            for (const name of topCityNames) {
+                const res = await apiGet('/api/attractions/list', { city: name, page: 1, page_size: 1 });
+                if (res && res.data) {
+                    cityData.push({ name, count: res.data.total || 0, avgRating: '4.2' });
+                }
+            }
+            topCities.value = cityData;
+        }
+
+        async function loadPopular() {
+            popularLoading.value = true;
+            const res = await apiGet('/api/recommend/popular', { top_n: 12 });
+            popularList.value = extractData(res);
+            popularLoading.value = false;
+        }
+
+        async function loadSeasonal(season) {
+            selectedSeason.value = season;
+            seasonalLoading.value = true;
+            const res = await apiGet('/api/recommend/seasonal', { season, top_n: 8 });
+            seasonalList.value = extractData(res);
+            seasonalLoading.value = false;
+        }
+
+        // 浏览页
+        async function loadAttractions() {
+            exploreLoading.value = true;
+            const params = { page: explorePage.value, page_size: explorePageSize };
+            if (filterCity.value) params.city = filterCity.value;
+            if (filterKeyword.value) params.keyword = filterKeyword.value;
+            if (filterRating.value) params.min_rating = filterRating.value;
+            const res = await apiGet('/api/attractions/list', params);
+            if (res && res.data) {
+                exploreList.value = res.data.items || [];
+                exploreTotal.value = res.data.total || 0;
+            }
+            exploreLoading.value = false;
+        }
+
+        // 详情
+        async function openDetail(id) {
+            const res = await apiGet('/api/attractions/detail/' + id);
+            if (res && res.data) {
+                detailData.value = res.data;
+                showDetailModal.value = true;
+                // 记录浏览
+                if (user.value) apiPost('/api/behavior/browse', { user_id: user.value.id, attraction_id: id });
+                // 检查收藏
+                if (user.value) {
+                    const colRes = await apiGet('/api/behavior/is_collected', { user_id: user.value.id, attraction_id: id });
+                    isCollected.value = colRes && colRes.data ? colRes.data.is_collected : false;
+                }
+                // 加载相似景点
+                const simRes = await apiGet('/api/recommend/similar/' + id);
+                similarList.value = extractData(simRes).slice(0, 6);
+            }
+        }
+
+        async function toggleCollect() {
+            if (!user.value) { showLoginModal.value = true; return; }
+            if (isCollected.value) {
+                await apiDelete('/api/behavior/collect', { user_id: user.value.id, attraction_id: detailData.value.id });
+                isCollected.value = false;
+            } else {
+                await apiPost('/api/behavior/collect', { user_id: user.value.id, attraction_id: detailData.value.id });
+                isCollected.value = true;
+            }
+        }
+
+        // 搜索
+        function doSearch() {
+            if (searchKeyword.value.trim()) {
+                filterKeyword.value = searchKeyword.value.trim();
+                currentView.value = 'explore';
+                explorePage.value = 1;
+                loadAttractions();
+            }
+        }
+
+        function selectCity(name) {
+            filterCity.value = name;
+            currentView.value = 'explore';
+            explorePage.value = 1;
+            loadAttractions();
+        }
+
+        // 登录注册
+        async function doLogin() {
+            const res = await apiPost('/api/user/login', loginForm.value);
+            if (res && res.code === 200 && res.data) {
+                user.value = { id: res.data.user_id, username: res.data.username, nickname: res.data.nickname };
+                token.value = res.data.token;
+                localStorage.setItem('travel_user', JSON.stringify(user.value));
+                localStorage.setItem('travel_token', token.value);
+                showLoginModal.value = false;
+                loginForm.value = { username: '', password: '' };
+            } else {
+                alert(res?.message || '登录失败');
+            }
+        }
+
+        async function doRegister() {
+            const res = await apiPost('/api/user/register', registerForm.value);
+            if (res && res.code === 200) {
+                alert('注册成功，请登录');
+                showRegisterModal.value = false;
+                showLoginModal.value = true;
+                registerForm.value = { username: '', password: '', nickname: '' };
+            } else {
+                alert(res?.message || '注册失败');
+            }
+        }
+
+        function logout() {
+            user.value = null;
+            token.value = '';
+            localStorage.removeItem('travel_user');
+            localStorage.removeItem('travel_token');
+            currentView.value = 'home';
+        }
+
+        function openProfile() {
+            if (!user.value) { showLoginModal.value = true; return; }
+            currentView.value = 'profile';
+            profileTab.value = 'collects';
+            loadCollects();
+        }
+
+        async function loadCollects() {
+            if (!user.value) return;
+            collectLoading.value = true;
+            const res = await apiGet('/api/behavior/collects/' + user.value.id, { page: 1, page_size: 20 });
+            const data = extractData(res);
+            collectList.value = data.map(i => i.attraction || i);
+            collectLoading.value = false;
+        }
+
+        async function loadHistory() {
+            if (!user.value) return;
+            historyLoading.value = true;
+            const res = await apiGet('/api/behavior/history/' + user.value.id, { page: 1, page_size: 20 });
+            const data = extractData(res);
+            historyList.value = data.map(i => i.attraction || i);
+            historyLoading.value = false;
+        }
+
+        onMounted(async () => {
+            currentSeason.value = getSeason();
+            loadStats();
+            loadPopular();
+            loadSeasonal(getSeason());
+            // 加载城市列表
+            const cityRes = await apiGet('/api/attractions/cities');
+            allCities.value = extractData(cityRes);
+            // 加载热门城市
+            const topNames = allCities.value.slice(0, 12);
+            const cityData = [];
+            for (const name of topNames) {
+                const res = await apiGet('/api/attractions/list', { city: name, page: 1, page_size: 1 });
+                if (res && res.data) {
+                    cityData.push({ name, count: res.data.total || 0, avgRating: '4.2' });
+                }
+            }
+            topCities.value = cityData;
+        });
+
+        return {
+            currentView, user, token,
+            searchKeyword, stats, topCities, popularList, popularLoading,
+            seasonalList, seasonalLoading, selectedSeason, currentSeason,
+            allCities, filterCity, filterKeyword, filterRating,
+            exploreList, exploreLoading, explorePage, explorePageSize, exploreTotal, totalPages,
+            showDetailModal, detailData, isCollected, similarList,
+            showLoginModal, showRegisterModal, loginForm, registerForm,
+            profileTab, collectList, collectLoading, historyList, historyLoading,
+            doSearch, selectCity, loadAttractions, loadSeasonal,
+            openDetail, toggleCollect,
+            doLogin, doRegister, logout, openProfile, loadCollects, loadHistory
+        };
+    }
+});
+
+app.use(ElementPlus, { locale: ElementPlusLocaleZhCn });
+app.mount('#app');
+</script>
+</body>
+</html>
